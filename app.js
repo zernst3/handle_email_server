@@ -2,42 +2,80 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const app = express();
+app.use(express.json());
+app.use(cors());
 
 const PORT = process.env.PORT || 8080;
 const mailgun = require("mailgun-js");
+const e = require("express");
 
 const APIKEY = process.env.APIKEY;
 const DOMAIN = process.env.DOMAIN;
 
 const mg = mailgun({ apiKey: APIKEY, domain: DOMAIN });
 
-const data = {
-  from: "Zachary Ernst <zernst3@live.com>",
-  to: "zernst3@live.com",
-  subject: "Hello",
-  text: "Testing some Mailgun awesomness!",
-};
-
-app.use(cors());
-
 app.get("/", (req, res) => {
   res.send("Server running!");
 });
 
-app.post("/", (req, res) => {
-  // mg.messages().send(data, function (error, body) {
-  //   if (error) {
-  //     console.log(error);
-  //     res.send("Error");
-  //   } else {
-  //     console.log(body);
-  //     res.send("Success");
-  //   }
-  // });
+app.post("/", async (req, res) => {
   console.log(req.body);
-  setTimeout(() => {
+
+  let emailError = undefined;
+
+  const recipientData = {
+    from: "Zachary Ernst <zernst3@live.com>",
+    to: req.body.email,
+    subject: "Thank You for your Email",
+    template: "thank_you_email",
+    "h:X-Mailgun-Variables": JSON.stringify({
+      recipient_name: req.body.name,
+    }),
+  };
+
+  const myData = {
+    from: req.body.email,
+    to: "Zachary Ernst <zernst3@live.com>",
+    subject: req.body.subject,
+    template: "email_to_me",
+    "h:X-Mailgun-Variables": JSON.stringify({
+      recipient_name: req.body.name,
+      text: req.body.message,
+      recipient_email: req.body.email,
+    }),
+  };
+
+  const sendEmails = async () => {
+    return new Promise((resolve, reject) => {
+      mg.messages().send(recipientData, function (error, body) {
+        if (error) {
+          console.log(error);
+          emailError = error;
+          return reject(error);
+        } else {
+          console.log(body);
+          mg.messages().send(myData, function (error, body) {
+            if (error) {
+              console.log(error);
+              emailError = error;
+              return reject(error);
+            } else {
+              console.log(body);
+              return resolve();
+            }
+          });
+        }
+      });
+    });
+  };
+
+  await sendEmails();
+
+  if (emailError) {
+    res.send("Error");
+  } else {
     res.send("Success");
-  }, 10000);
+  }
 });
 
 app.listen(PORT, () => console.log(`Email app listening on port ${8080}!`));
