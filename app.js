@@ -21,8 +21,6 @@ app.get("/", (req, res) => {
 app.post("/", async (req, res) => {
   console.log(req.body);
 
-  let emailError = undefined;
-
   const recipientData = {
     from: "Zachary Ernst <zernst3@live.com>",
     to: req.body.email,
@@ -50,14 +48,12 @@ app.post("/", async (req, res) => {
       mg.messages().send(recipientData, function (error, body) {
         if (error) {
           console.log(error);
-          emailError = error;
           return reject(error);
         } else {
           console.log(body);
           mg.messages().send(myData, function (error, body) {
             if (error) {
               console.log(error);
-              emailError = error;
               return reject(error);
             } else {
               console.log(body);
@@ -69,12 +65,13 @@ app.post("/", async (req, res) => {
     });
   };
 
-  await sendEmails();
-
-  if (emailError) {
-    res.send("Error");
-  } else {
+  try {
+    await sendEmails();
+    console.log("Message Sent!");
     res.send("Success");
+  } catch (error) {
+    console.log(error);
+    res.send("Error");
   }
 });
 
